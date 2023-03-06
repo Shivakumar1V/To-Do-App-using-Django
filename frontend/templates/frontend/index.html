@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TO DO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <style>
+        body{
+            background-color: #2ef9f9; 
+            background-image: linear-gradient(90deg, #38e7ff 0%, #3571ba 50%, #d250f7 100%);
+        }
+        .main{
+            width: 40rem;
+            background-color: white;
+            margin: 2rem auto;
+            padding: 1rem; 
+            border-radius: 0.5rem;
+        }
+        .underline{
+            text-decoration: underline;
+            text-underline-offset: 0.3em;
+            margin-bottom: 1em;
+        }
+        .input-group input{
+            border: 0.08em solid black;
+        }
+        .input-group button{
+            background-color: #2bf016;
+        }
+        .all-tasks{
+            max-height: 20em;
+            overflow-y: scroll;
+            border-top: 0.1em solid black;
+            padding: 0.5em 0;
+        }
+        .all-tasks::-webkit-scrollbar{
+            width: 0.5rem;
+            background-color: black;
+        }
+        .all-tasks::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .all-tasks::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 0.5em;
+        }
+        .task{
+            margin: 1rem 0;
+            border-bottom: 0.01em solid rgb(139, 134, 134);
+        }
+        .task p{
+            width: 30em;
+            word-wrap: break-word;
+        }
+        .task-options{
+            padding: 0.5em;
+        }
+        .checkbox{
+            height: 1.3em;
+            width: 1.3em;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 0.05em solid;
+            vertical-align: middle;
+        }
+        .checkbox:checked{
+            accent-color: green;
+        }
+        @media screen and (max-width:650px) {
+            .main{
+                width: auto;
+                margin: 2rem 0.5rem;
+            }
+            .all-tasks{
+                max-height: 26em;
+            }
+            .task p{
+                width: 13em;
+            }
+        }
+        @media screen and (max-width:384px) {
+            .task p{
+                width: 11em;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <h1 class="text-center underline my-2" style="color: white;">To-Do App</h1>
+    <div class="main">
+
+        <form action="" method="post" id="form">
+            {% csrf_token %}
+            <div class="input-group my-3 mb-4">
+                <input type="text" class="form-control" placeholder="Add Task (Max. 500 Characters)" aria-label="Recipient's username" aria-describedby="button-addon2" id="title">
+                <button class="btn btn-info" type="submit" id="button-addon2">Add Task</button>
+            </div>
+        </form>
+
+        <div class="all-tasks" id="allTasks">
+
+        </div>
+
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+
+    <script>
+
+        buildTasks();
+        const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value
+
+        function buildTasks(){
+            var allTasks = document.getElementById('allTasks')
+            var url = "http://127.0.0.1:8000/api/task-list/"
+
+            fetch(url)
+            .then((resp) => resp.json()) 
+            .then(function (data){  
+                allTasks.innerHTML = ''  
+                var tasks = data
+                for (var i in tasks){
+
+                    var checkBox = `<input type="checkbox" name="checkbox" title="not completed" class="checkbox" id='{"id": ${tasks[i].id}}' onclick="taskCompletion(this.id)">`
+                    if(tasks[i].completed == true){
+                        checkBox = `<input type="checkbox" name="checkbox" title="completed" class="checkbox" id='{"id": ${tasks[i].id}}' onclick="taskCompletion(this.id)" checked>`
+                    }
+                    
+                    var item = `
+                    <div class="task d-flex justify-content-between align-items-center">
+                        <p id="title${tasks[i].id}">${tasks[i].title}</p>
+                        <div class="task-options">
+                            ${checkBox}
+                            <button class="btn btn-outline-info btn-sm edit" id='{"id": ${tasks[i].id}, "title": "${tasks[i].title}"}' onclick="editTask(this.id)">Edit</button>
+                            <button class="btn btn-outline-danger btn-sm delete" id="${tasks[i].id}" onclick="deleteTask(this.id)"><img src="/static/frontend/img/trash3.svg" alt="delete" height="16"></button>
+                        </div>
+                    </div>
+                    `
+                    allTasks.innerHTML += item
+                    
+                }
+            })  
+        }
+
+
+        var editTaskItem = null
+
+        // For creating new task & updating a task
+        var form = document.getElementById('form')
+        form.addEventListener("submit", function(e){
+            e.preventDefault();
+            var url = "http://127.0.0.1:8000/api/create-task/"
+            if (editTaskItem != null){ 
+                url = `http://127.0.0.1:8000/api/update-task/${editTaskItem.id}/`
+                document.getElementById('button-addon2').innerHTML = "Add Task"  
+            }
+            editTaskItem = null  
+
+            var title = document.getElementById('title').value
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    'Content-type': 'application/json',
+                    'X-CSRFToken': csrftoken  
+                },
+                body: JSON.stringify({'title': title})
+            })
+            .then(function(response){
+                buildTasks()  
+                form.reset()  
+            })
+
+        })
+
+       function editTask(item){
+           item = JSON.parse(item)
+           editTaskItem = item
+           document.getElementById('title').value = item.title 
+           document.getElementById('button-addon2').innerHTML = "Update Task" 
+       }
+
+       // For deleting task
+       function deleteTask(item){
+           fetch(`http://127.0.0.1:8000/api/delete-task/${item}/`, {
+               method: 'DELETE',
+               headers: {
+                   'Content-type': 'application/json',
+                   'X-CSRFToken': csrftoken
+               }
+           }).then((response) => {
+               buildTasks()
+           })
+       }
+
+       // For task completion Checkbox
+       function taskCompletion(item){
+           const checkStatus = document.getElementById(`${item}`)
+           item = JSON.parse(item)
+           title = document.getElementById(`title${item.id}`).innerHTML; 
+           url = `http://127.0.0.1:8000/api/update-task/${item.id}/`
+           fetch(url, {
+               method: 'POST',
+               headers: {
+                   'Content-type': 'application/json',
+                   'X-CSRFToken': csrftoken
+               },
+               body: JSON.stringify({'title': title, 'completed': checkStatus.checked})
+           }).then((response) => {
+               buildTasks()
+           })
+       }
+
+    </script>
+</body>
+</html>
